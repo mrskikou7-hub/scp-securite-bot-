@@ -20,7 +20,7 @@ module.exports = {
   name: 'interactionCreate',
   async execute(interaction, client) {
 
-    // ─── SLASH COMMANDS ──────────────────────────────────────────────
+    // SLASH COMMANDS
     if (interaction.isChatInputCommand()) {
       if (interaction.commandName === 'setup-service') {
         if (SERVICE_CHANNEL_ID && interaction.channelId !== SERVICE_CHANNEL_ID) {
@@ -30,7 +30,6 @@ module.exports = {
           });
         }
       }
-
       const command = client.commands.get(interaction.commandName);
       if (!command) return;
       try {
@@ -44,12 +43,28 @@ module.exports = {
       return;
     }
 
-    // ─── MODAL SUBMIT (lien d'appel) ─────────────────────────────────
+    // MODAL SUBMIT (lien d'appel)
     if (interaction.isModalSubmit() && interaction.customId === 'modal_prise_service') {
-      const lienAppel = interaction.fields.getTextInputValue('lien_appel');
+      const lienAppel = interaction.fields.getTextInputValue('lien_appel').trim();
       const userId = interaction.user.id;
       const now = Date.now();
       const agent = getAgent(userId);
+
+      // Vérification que c'est bien un lien valide (http:// ou https://)
+      let urlValide = false;
+      try {
+        const url = new URL(lienAppel);
+        urlValide = url.protocol === 'http:' || url.protocol === 'https:';
+      } catch (_) {
+        urlValide = false;
+      }
+
+      if (!urlValide) {
+        return interaction.reply({
+          content: '🚫 **Lien invalide !** Tu dois entrer un lien valide commençant par `https://` ou `http://`, pas un mot ou une phrase.\n> Exemple : `https://docs.google.com/...`',
+          ephemeral: true
+        });
+      }
 
       setAgent(userId, { inService: true, startTime: now, username: interaction.user.username, lienAppel });
 
@@ -73,7 +88,6 @@ module.exports = {
 
       await interaction.reply({ embeds: [embed], ephemeral: true });
 
-      // Mettre à jour le leaderboard
       const channel = interaction.channel;
       const messages = await channel.messages.fetch({ limit: 20 });
       const leaderboardMsg = messages.find(m => m.author.bot && m.components.length > 0);
@@ -81,7 +95,7 @@ module.exports = {
       return;
     }
 
-    // ─── BUTTONS ─────────────────────────────────────────────────────
+    // BUTTONS
     if (!interaction.isButton()) return;
 
     if (SERVICE_CHANNEL_ID && interaction.channelId !== SERVICE_CHANNEL_ID) {
@@ -102,7 +116,7 @@ module.exports = {
     const now = Date.now();
     const agent = getAgent(userId);
 
-    // ── PRISE DE SERVICE → ouvre le modal ──
+    // PRISE DE SERVICE → ouvre le modal
     if (interaction.customId === 'prise_service') {
       if (agent.inService) {
         return interaction.reply({
@@ -128,7 +142,7 @@ module.exports = {
       return;
     }
 
-    // ── FIN DE SERVICE ──
+    // FIN DE SERVICE
     if (interaction.customId === 'fin_service') {
       if (!agent.inService) {
         return interaction.reply({
