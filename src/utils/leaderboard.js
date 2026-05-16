@@ -14,7 +14,6 @@ function buildLeaderboardEmbed() {
   const agents = getAllAgents();
   const now = Date.now();
 
-  // Sort: in-service first, then by total hours
   const sorted = Object.entries(agents)
     .map(([id, data]) => {
       const currentSession = data.inService && data.startTime ? now - data.startTime : 0;
@@ -28,16 +27,16 @@ function buildLeaderboardEmbed() {
     });
 
   const inServiceList = sorted.filter(a => a.inService);
-  const offServiceList = sorted.filter(a => !a.inService && a.totalMs > 0);
 
-  // Build in-service section
+  // Build in-service section avec lien d'appel
   let inServiceField = '';
   if (inServiceList.length === 0) {
     inServiceField = '*Aucun agent en service actuellement.*';
   } else {
     inServiceList.forEach((agent, i) => {
       const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `**${i + 1}.**`;
-      inServiceField += `${medal} <@${agent.id}> — Session: \`${formatDuration(agent.currentSession)}\` | Total: \`${formatDuration(agent.totalMs)}\`\n`;
+      const lien = agent.lienAppel ? `\n　　📋 [Appel d'intervention](${agent.lienAppel})` : '';
+      inServiceField += `${medal} <@${agent.id}> — Session: \`${formatDuration(agent.currentSession)}\` | Total: \`${formatDuration(agent.totalMs)}\`${lien}\n`;
     });
   }
 
@@ -60,21 +59,9 @@ function buildLeaderboardEmbed() {
     .setColor(0x1a1a2e)
     .setThumbnail('https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/SCP_Foundation_%28emblem%29.svg/240px-SCP_Foundation_%28emblem%29.svg.png')
     .addFields(
-      {
-        name: '🟢 Agents En Service',
-        value: inServiceField,
-        inline: false
-      },
-      {
-        name: '\u200b',
-        value: '\u200b',
-        inline: false
-      },
-      {
-        name: '🏆 Classement Total des Heures',
-        value: totalField,
-        inline: false
-      }
+      { name: '🟢 Agents En Service', value: inServiceField, inline: false },
+      { name: '\u200b', value: '\u200b', inline: false },
+      { name: '🏆 Classement Total des Heures', value: totalField, inline: false }
     )
     .setFooter({ text: `Fondation SCP • Département de Sécurité • Mis à jour` })
     .setTimestamp();
