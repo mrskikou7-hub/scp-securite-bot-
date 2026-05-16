@@ -1,6 +1,7 @@
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const { initDB } = require('./utils/db');
 
 const client = new Client({
   intents: [
@@ -12,7 +13,6 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// Load commands
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'));
 for (const file of commandFiles) {
@@ -22,7 +22,6 @@ for (const file of commandFiles) {
   }
 }
 
-// Load events
 const eventsPath = path.join(__dirname, 'events');
 const eventFiles = fs.readdirSync(eventsPath).filter(f => f.endsWith('.js'));
 for (const file of eventFiles) {
@@ -34,4 +33,10 @@ for (const file of eventFiles) {
   }
 }
 
-client.login(process.env.DISCORD_TOKEN);
+// Initialise la DB avant de connecter le bot
+initDB().then(() => {
+  client.login(process.env.DISCORD_TOKEN);
+}).catch(err => {
+  console.error('Erreur DB:', err);
+  process.exit(1);
+});
