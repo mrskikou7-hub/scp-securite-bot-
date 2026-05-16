@@ -43,14 +43,14 @@ module.exports = {
       return;
     }
 
-    // MODAL SUBMIT (lien d'appel)
+    // MODAL SUBMIT
     if (interaction.isModalSubmit() && interaction.customId === 'modal_prise_service') {
       const lienAppel = interaction.fields.getTextInputValue('lien_appel').trim();
       const userId = interaction.user.id;
       const now = Date.now();
       const agent = getAgent(userId);
 
-      // Vérification que c'est bien un lien valide (http:// ou https://)
+      // Validation URL
       let urlValide = false;
       try {
         const url = new URL(lienAppel);
@@ -61,7 +61,7 @@ module.exports = {
 
       if (!urlValide) {
         return interaction.reply({
-          content: '🚫 **Lien invalide !** Tu dois entrer le lien de l'appel AIT, pas un mot ou une phrase.\n> Exemple : `https://discord.com/channels/`',
+          content: `🚫 **Lien invalide !** Tu dois entrer un lien commençant par \`https://\`, pas un mot ou une phrase.\n> Exemple : \`https://discord.com/channels/...\``,
           ephemeral: true
         });
       }
@@ -70,20 +70,20 @@ module.exports = {
 
       if (IN_SERVICE_ROLE_ID) {
         try { await interaction.member.roles.add(IN_SERVICE_ROLE_ID); }
-        catch (e) { console.warn('Impossible d\'ajouter le rôle:', e.message); }
+        catch (e) { console.warn('Impossible d\'ajouter le role:', e.message); }
       }
 
       const embed = new EmbedBuilder()
         .setTitle('🟢 Prise de Service')
         .setDescription(`Agent **${interaction.user.username}** a pris son service.`)
         .addFields(
-          { name: '🕐 Heure de début', value: `<t:${Math.floor(now / 1000)}:T>`, inline: true },
-          { name: '⏱️ Total accumulé', value: `\`${formatDuration(agent.totalMs)}\``, inline: true },
-          { name: '📋 Lien d\'appel d\'intervention', value: lienAppel, inline: false }
+          { name: '🕐 Heure de debut', value: `<t:${Math.floor(now / 1000)}:T>`, inline: true },
+          { name: '⏱️ Total accumule', value: `\`${formatDuration(agent.totalMs)}\``, inline: true },
+          { name: '📋 Lien appel intervention', value: lienAppel, inline: false }
         )
         .setColor(0x00ff88)
         .setThumbnail(interaction.user.displayAvatarURL())
-        .setFooter({ text: 'Fondation SCP • Département de Sécurité' })
+        .setFooter({ text: 'Fondation SCP • Departement de Securite' })
         .setTimestamp();
 
       await interaction.reply({ embeds: [embed], ephemeral: true });
@@ -107,7 +107,7 @@ module.exports = {
 
     if (PDS_FDS_ROLE_ID && !interaction.member.roles.cache.has(PDS_FDS_ROLE_ID)) {
       return interaction.reply({
-        content: '🚫 Tu n\'as pas le rôle requis pour effectuer une prise ou fin de service.',
+        content: `🚫 Tu n'as pas le role requis pour effectuer une prise ou fin de service.`,
         ephemeral: true
       });
     }
@@ -116,22 +116,22 @@ module.exports = {
     const now = Date.now();
     const agent = getAgent(userId);
 
-    // PRISE DE SERVICE → ouvre le modal
+    // PRISE DE SERVICE
     if (interaction.customId === 'prise_service') {
       if (agent.inService) {
         return interaction.reply({
-          content: '⚠️ Tu es **déjà en service** ! Utilise le bouton **Fin de Service** pour terminer.',
+          content: `⚠️ Tu es **deja en service** ! Utilise le bouton **Fin de Service** pour terminer.`,
           ephemeral: true
         });
       }
 
       const modal = new ModalBuilder()
         .setCustomId('modal_prise_service')
-        .setTitle('🟢 Prise de Service — SCP Sécurité');
+        .setTitle('Prise de Service - SCP Securite');
 
       const lienInput = new TextInputBuilder()
         .setCustomId('lien_appel')
-        .setLabel('Lien d\'appel d\'intervention')
+        .setLabel('Lien appel intervention (https://...)')
         .setPlaceholder('https://...')
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
@@ -146,7 +146,7 @@ module.exports = {
     if (interaction.customId === 'fin_service') {
       if (!agent.inService) {
         return interaction.reply({
-          content: '⚠️ Tu n\'es **pas en service** actuellement !',
+          content: `⚠️ Tu n'es **pas en service** actuellement !`,
           ephemeral: true
         });
       }
@@ -158,19 +158,19 @@ module.exports = {
 
       if (IN_SERVICE_ROLE_ID) {
         try { await interaction.member.roles.remove(IN_SERVICE_ROLE_ID); }
-        catch (e) { console.warn('Impossible de retirer le rôle:', e.message); }
+        catch (e) { console.warn('Impossible de retirer le role:', e.message); }
       }
 
       const embed = new EmbedBuilder()
         .setTitle('🔴 Fin de Service')
-        .setDescription(`Agent **${interaction.user.username}** a terminé son service.`)
+        .setDescription(`Agent **${interaction.user.username}** a termine son service.`)
         .addFields(
-          { name: '⏱️ Durée de la session', value: `\`${formatDuration(sessionMs)}\``, inline: true },
-          { name: '📊 Total cumulé', value: `\`${formatDuration(newTotal)}\``, inline: true }
+          { name: '⏱️ Duree de la session', value: `\`${formatDuration(sessionMs)}\``, inline: true },
+          { name: '📊 Total cumule', value: `\`${formatDuration(newTotal)}\``, inline: true }
         )
         .setColor(0xff4444)
         .setThumbnail(interaction.user.displayAvatarURL())
-        .setFooter({ text: 'Fondation SCP • Département de Sécurité' })
+        .setFooter({ text: 'Fondation SCP • Departement de Securite' })
         .setTimestamp();
 
       await interaction.reply({ embeds: [embed], ephemeral: true });
