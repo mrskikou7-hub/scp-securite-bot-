@@ -51,7 +51,7 @@ module.exports = {
       const now = Date.now();
       const agent = getAgent(userId);
 
-      setAgent(userId, { inService: true, startTime: now, username: interaction.user.username });
+      setAgent(userId, { inService: true, startTime: now, username: interaction.user.username, lienAppel });
 
       if (IN_SERVICE_ROLE_ID) {
         try { await interaction.member.roles.add(IN_SERVICE_ROLE_ID); }
@@ -140,7 +140,7 @@ module.exports = {
       const sessionMs = now - (agent.startTime || now);
       const newTotal = (agent.totalMs || 0) + sessionMs;
 
-      setAgent(userId, { inService: false, startTime: null, totalMs: newTotal, username: interaction.user.username });
+      setAgent(userId, { inService: false, startTime: null, totalMs: newTotal, username: interaction.user.username, lienAppel: null });
 
       if (IN_SERVICE_ROLE_ID) {
         try { await interaction.member.roles.remove(IN_SERVICE_ROLE_ID); }
