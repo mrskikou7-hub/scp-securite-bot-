@@ -61,7 +61,7 @@ module.exports = {
 
       if (!urlValide) {
         return interaction.reply({
-          content: '🚫 **Lien invalide !** Tu dois entrer un lien valide commençant par `https://` ou `http://`, pas un mot ou une phrase.\n> Exemple : `https://docs.google.com/...`',
+          content: '🚫 **Lien invalide !** Tu dois entrer le lien de l'appel AIT, pas un mot ou une phrase.\n> Exemple : `https://discord.com/channels/`',
           ephemeral: true
         });
       }
