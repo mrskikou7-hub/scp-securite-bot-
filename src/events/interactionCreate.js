@@ -1,10 +1,9 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 const { getAgent, setAgent } = require('../utils/db');
 const { buildLeaderboardEmbed, buildServiceButtons, formatDuration } = require('../utils/leaderboard');
 
 const IN_SERVICE_ROLE_ID  = process.env.IN_SERVICE_ROLE_ID  || null;
 const PDS_FDS_ROLE_ID     = process.env.PDS_FDS_ROLE_ID     || null;
-// Salon autorisé pour les boutons PDS/FDS (et /setup-service)
 const SERVICE_CHANNEL_ID  = process.env.SERVICE_CHANNEL_ID  || null;
 
 async function updateLeaderboardMessage(message) {
@@ -23,7 +22,6 @@ module.exports = {
 
     // ─── SLASH COMMANDS ──────────────────────────────────────────────
     if (interaction.isChatInputCommand()) {
-      // Vérification du salon pour /setup-service
       if (interaction.commandName === 'setup-service') {
         if (SERVICE_CHANNEL_ID && interaction.channelId !== SERVICE_CHANNEL_ID) {
           return interaction.reply({
@@ -46,37 +44,12 @@ module.exports = {
       return;
     }
 
-    // ─── BUTTONS ─────────────────────────────────────────────────────
-    if (!interaction.isButton()) return;
-
-    // Vérification du salon pour les boutons PDS/FDS
-    if (SERVICE_CHANNEL_ID && interaction.channelId !== SERVICE_CHANNEL_ID) {
-      return interaction.reply({
-        content: `🚫 Les prises/fins de service ne peuvent se faire que dans <#${SERVICE_CHANNEL_ID}>.`,
-        ephemeral: true
-      });
-    }
-
-    // Vérification du rôle PDS/FDS
-    if (PDS_FDS_ROLE_ID && !interaction.member.roles.cache.has(PDS_FDS_ROLE_ID)) {
-      return interaction.reply({
-        content: '🚫 Tu n\'as pas le rôle requis pour effectuer une prise ou fin de service.',
-        ephemeral: true
-      });
-    }
-
-    const userId = interaction.user.id;
-    const now = Date.now();
-    const agent = getAgent(userId);
-
-    // ── PRISE DE SERVICE ──
-    if (interaction.customId === 'prise_service') {
-      if (agent.inService) {
-        return interaction.reply({
-          content: '⚠️ Tu es **déjà en service** ! Utilise le bouton **Fin de Service** pour terminer.',
-          ephemeral: true
-        });
-      }
+    // ─── MODAL SUBMIT (lien d'appel) ─────────────────────────────────
+    if (interaction.isModalSubmit() && interaction.customId === 'modal_prise_service') {
+      const lienAppel = interaction.fields.getTextInputValue('lien_appel');
+      const userId = interaction.user.id;
+      const now = Date.now();
+      const agent = getAgent(userId);
 
       setAgent(userId, { inService: true, startTime: now, username: interaction.user.username });
 
@@ -90,7 +63,8 @@ module.exports = {
         .setDescription(`Agent **${interaction.user.username}** a pris son service.`)
         .addFields(
           { name: '🕐 Heure de début', value: `<t:${Math.floor(now / 1000)}:T>`, inline: true },
-          { name: '⏱️ Total accumulé', value: `\`${formatDuration(agent.totalMs)}\``, inline: true }
+          { name: '⏱️ Total accumulé', value: `\`${formatDuration(agent.totalMs)}\``, inline: true },
+          { name: '📋 Lien d\'appel d\'intervention', value: lienAppel, inline: false }
         )
         .setColor(0x00ff88)
         .setThumbnail(interaction.user.displayAvatarURL())
@@ -98,7 +72,59 @@ module.exports = {
         .setTimestamp();
 
       await interaction.reply({ embeds: [embed], ephemeral: true });
-      await updateLeaderboardMessage(interaction.message);
+
+      // Mettre à jour le leaderboard
+      const channel = interaction.channel;
+      const messages = await channel.messages.fetch({ limit: 20 });
+      const leaderboardMsg = messages.find(m => m.author.bot && m.components.length > 0);
+      if (leaderboardMsg) await updateLeaderboardMessage(leaderboardMsg);
+      return;
+    }
+
+    // ─── BUTTONS ─────────────────────────────────────────────────────
+    if (!interaction.isButton()) return;
+
+    if (SERVICE_CHANNEL_ID && interaction.channelId !== SERVICE_CHANNEL_ID) {
+      return interaction.reply({
+        content: `🚫 Les prises/fins de service ne peuvent se faire que dans <#${SERVICE_CHANNEL_ID}>.`,
+        ephemeral: true
+      });
+    }
+
+    if (PDS_FDS_ROLE_ID && !interaction.member.roles.cache.has(PDS_FDS_ROLE_ID)) {
+      return interaction.reply({
+        content: '🚫 Tu n\'as pas le rôle requis pour effectuer une prise ou fin de service.',
+        ephemeral: true
+      });
+    }
+
+    const userId = interaction.user.id;
+    const now = Date.now();
+    const agent = getAgent(userId);
+
+    // ── PRISE DE SERVICE → ouvre le modal ──
+    if (interaction.customId === 'prise_service') {
+      if (agent.inService) {
+        return interaction.reply({
+          content: '⚠️ Tu es **déjà en service** ! Utilise le bouton **Fin de Service** pour terminer.',
+          ephemeral: true
+        });
+      }
+
+      const modal = new ModalBuilder()
+        .setCustomId('modal_prise_service')
+        .setTitle('🟢 Prise de Service — SCP Sécurité');
+
+      const lienInput = new TextInputBuilder()
+        .setCustomId('lien_appel')
+        .setLabel('Lien d\'appel d\'intervention')
+        .setPlaceholder('https://...')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setMaxLength(500);
+
+      modal.addComponents(new ActionRowBuilder().addComponents(lienInput));
+      await interaction.showModal(modal);
       return;
     }
 
